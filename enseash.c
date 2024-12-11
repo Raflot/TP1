@@ -39,5 +39,6 @@ int main(int argc, char *argv[])
         }
 
     }
+write(1,"bye bye\n",9);
 
 }
