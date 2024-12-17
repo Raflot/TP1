@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 
 int main(int argc, char *argv[]) {
     char input[128];
@@ -37,11 +38,20 @@ int main(int argc, char *argv[]) {
             continue; //return to prompt
         }
         clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+        char *args[16]; //array storing the pointers
+        int i = 0;
+        char *token = strtok(input, " "); //split
+        while (token != NULL && i < 15) {//store (max 15) tokens in args
+            args[i++] = token;
+            token = strtok(NULL, " ");
+        }
+        args[i] = NULL;//end with null
+
         pid = fork();
         if (pid == 0) {
             //child, execute the command
-            execlp(input, input, (char *)NULL);
-
+            execvp(args[0], args);
             //if fail, print error and exit
             char error_msg[] = "Error: Command not found.\n";
             write(STDERR_FILENO, error_msg, strlen(error_msg));
