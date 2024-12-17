@@ -5,45 +5,62 @@
 #include <signal.h>
 #include <stdio.h>
 
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     char input[128];
     pid_t pid;
     int status;
+    char prompt[64] = "enseash % ";
 
-    write(STDOUT_FILENO, "Bienvenue dans le Shell ENSEA.\n", 31);
-    write(STDOUT_FILENO, "Tapez 'exit' pour quitter.\n", 27);
-    
+    write(STDOUT_FILENO, "Bienvenue dans le Shell ENSEA.\nTapez 'exit' pour quitter.\n", 59);
+
     while (1) {
-        write(STDOUT_FILENO, "enseash % ", 10);
 
+        write(STDOUT_FILENO, prompt, strlen(prompt));
+
+        //read user input
         ssize_t bytes_read = read(STDIN_FILENO, input, sizeof(input) - 1);
-        if (bytes_read <= 0) {
-            break;
-        }
+
+        //change the end
         input[bytes_read - 1] = '\0';
 
+        //"exit" command
         if (strcmp(input, "exit") == 0) {
-            write(STDOUT_FILENO, "Bye bye...\n", 11);
+            write(STDOUT_FILENO, "Bye bye...\n", 12);
             break;
+        }
+
+        //example
+        if (strcmp(input, "fortune") == 0) {
+            char fortune_msg[] = "hahaha\n";
+            write(STDOUT_FILENO, fortune_msg, strlen(fortune_msg));
+            continue; //return to prompt
         }
 
         pid = fork();
         if (pid == 0) {
-            //Child that execute the command
+            //child, execute the command
             execlp(input, input, (char *)NULL);
-            //If fail, print error and exit
-            perror("Error");
+
+            //if fail, print error and exit
+            char error_msg[] = "Error: Command not found.\n";
+            write(STDERR_FILENO, error_msg, strlen(error_msg));
             _exit(1);
         } else if (pid > 0) {
-            //Wait for the child to finish
+            //parent wait
             waitpid(pid, &status, 0);
+
+            //update prompt
+            if (WIFEXITED(status)) {
+                snprintf(prompt, sizeof(prompt), "enseash [exit:%d] %% ", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                snprintf(prompt, sizeof(prompt), "enseash [sign:%d] %% ", WTERMSIG(status));
+            }
         } else {
-            //Fork error
-            perror("Fork failed");
+            //error
+            char fork_error[] = "Error: Fork failed.\n";
+            write(STDERR_FILENO, fork_error, strlen(fork_error));
         }
     }
 
-
+    return 0;
 }
