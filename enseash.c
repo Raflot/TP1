@@ -1,44 +1,49 @@
-#include "stdlib.h"
-#include "stdio.h"
-#include "string.h"
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <stdio.h>
+
 
 int main(int argc, char *argv[])
 {
-    // write the message with write
-    const char *message = "Bienvenue dans le Shell ENSEA.\nPour quitter, tapez 'exit'.\n";
-    size_t lenmsg = strlen(message);
-    write(1, message, lenmsg);
-    // Define the prompt
-    char *prompt = "ensea %";
+    char input[128];
+    pid_t pid;
+    int status;
 
-    // show the prompt
-    size_t lenprompt = strlen(prompt);
-    write(1, prompt, lenprompt);
-
-    // read the imput
-    char input[256];
-    fgets(input, 256, stdin);
-
+    write(STDOUT_FILENO, "Bienvenue dans le Shell ENSEA.\n", 31);
+    write(STDOUT_FILENO, "Tapez 'exit' pour quitter.\n", 27);
+    
     while (1) {
-        // Show the prompt
-        size_t lenprompt = strlen(prompt);
-        write(1, prompt, lenprompt);
+        write(STDOUT_FILENO, "enseash % ", 10);
 
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            break; // exit if the end is reached to avoid repetition
+        ssize_t bytes_read = read(STDIN_FILENO, input, sizeof(input) - 1);
+        if (bytes_read <= 0) {
+            break;
         }
+        input[bytes_read - 1] = '\0';
 
-        // Remove the newline character from the input
-        size_t lenimp = strlen(input);
-        if (input[lenimp - 1] == '\n') {
-            input[lenimp - 1] = '\0';
-        }
-        //exit command
         if (strcmp(input, "exit") == 0) {
+            write(STDOUT_FILENO, "Bye bye...\n", 11);
             break;
         }
 
+        pid = fork();
+        if (pid == 0) {
+            //Child that execute the command
+            execlp(input, input, (char *)NULL);
+            //If fail, print error and exit
+            perror("Error");
+            _exit(1);
+        } else if (pid > 0) {
+            //Wait for the child to finish
+            waitpid(pid, &status, 0);
+        } else {
+            //Fork error
+            perror("Fork failed");
+        }
     }
-write(1,"bye bye\n",9);
+
 
 }
