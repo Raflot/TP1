@@ -1,11 +1,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +15,7 @@
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("error");
+        fprintf(stderr, "Usage: %s <host> <filename>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -29,24 +27,39 @@ int main(int argc, char *argv[]) {
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;       // IPv4
-    hints.ai_socktype = SOCK_DGRAM;  // UDP
+    hints.ai_socktype = SOCK_DGRAM; // UDP
 
-    //addrinfo
+    // Resolve hostname to IP address
     info = getaddrinfo(host, TFTP_PORT, &hints, &res);
     if (info != 0) {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(info));
-        return EXIT_FAILURE;
+        printf("error addr");
     }
 
-    //UDP socket
-    soc = socket(AF_INET, SOCK_DGRAM, 0);
+    // Create UDP socket
+    soc = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (soc == -1) {
-        perror("error");
-        return EXIT_FAILURE;
+        perror("error socket");
     }
 
-    printf("socket created successfully. file send to: %s\n", host);
+    printf("Socket created successfully. The file will be sent to: %s\n", host);
 
+    const char *mode = "octet";
+    size_t buffer_size = 2 + strlen(filename) + 1 + strlen(mode) + 1;
+    char *buffer = malloc(buffer_size);
+
+    //create the corect data
+    memset(buffer, 0, buffer_size);
+    buffer[0] = 0;
+    buffer[1] = 1;
+    strcpy(buffer + 2, filename);
+    strcpy(buffer + 2 + strlen(filename) + 1, mode);
+
+    // Send RRQ
+    ssize_t bytes_sent = sendto(soc, buffer, buffer_size, 0, res->ai_addr, res->ai_addrlen);
+
+    printf("TFTP Read Request sent (%zd bytes).\n", bytes_sent);
+
+    free(buffer);
     close(soc);
     freeaddrinfo(res);
 
